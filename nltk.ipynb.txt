@@ -1,0 +1,175 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "code",
+      "source": [
+        "nltk.download('maxent_ne_chunker_portuguese.pickle')"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "FaSdwnqjNyU_",
+        "outputId": "38f0dd9b-4631-4ef2-8898-a598b62d8b0a"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "[nltk_data] Error loading maxent_ne_chunker_portuguese.pickle: Package\n",
+            "[nltk_data]     'maxent_ne_chunker_portuguese.pickle' not found in\n",
+            "[nltk_data]     index\n"
+          ]
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "False"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 21
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import nltk\n",
+        "from nltk.tokenize import word_tokenize, sent_tokenize\n",
+        "from nltk.tag import pos_tag\n",
+        "from nltk.chunk import ne_chunk\n",
+        "from nltk.stem import PorterStemmer\n",
+        "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+        "from textblob import TextBlob\n",
+        "import random\n",
+        "\n",
+        "# Baixando recursos do NLTK (se ainda não baixou)\n",
+        "nltk.download('punkt')  # Tokenização de sentenças e palavras\n",
+        "nltk.download('averaged_perceptron_tagger')  # Marcação de POS (classe gramatical)\n",
+        "nltk.download('words')  # Palavras em inglês para auxiliar na marcação de POS\n",
+        "nltk.download('stopwords')  # Baixando stopwords para o português\n",
+        "\n",
+        "# Carregando o texto do arquivo (assumindo que 'noticia.txt' está em codificação UTF-8)\n",
+        "with open('noticia.txt', 'r', encoding='utf-8') as arquivo:\n",
+        "    texto = arquivo.read()\n",
+        "\n",
+        "# Definindo stopwords em português\n",
+        "stopwords_portugues = nltk.corpus.stopwords.words('portuguese')\n",
+        "\n",
+        "# Pré-processamento do texto\n",
+        "# Convertendo para minúsculas\n",
+        "texto_minusculo = texto.lower()\n",
+        "\n",
+        "# Removendo pontuação\n",
+        "from nltk.tokenize import sent_tokenize, word_tokenize\n",
+        "from string import punctuation\n",
+        "\n",
+        "texto_sem_pontuacao = ''.join([c for c in texto_minusculo if c not in punctuation])\n",
+        "tokens = word_tokenize(texto_sem_pontuacao)\n",
+        "\n",
+        "# Removendo stopwords\n",
+        "tokens_filtrados = [palavra for palavra in tokens if palavra not in stopwords_portugues]\n",
+        "\n",
+        "# Agrupando letras em palavras\n",
+        "tokens_agrupados = []\n",
+        "for token in tokens_filtrados:\n",
+        "    if token.isalpha():  # Verifica se é letra\n",
+        "        tokens_agrupados.append(token)\n",
+        "    elif tokens_agrupados:  # Se já há letras acumuladas\n",
+        "        tokens_agrupados.append(''.join(tokens_agrupados))\n",
+        "        tokens_agrupados.clear()  # Limpa a lista para próxima palavra\n",
+        "\n",
+        "# Remove tokens vazios\n",
+        "tokens_agrupados = [token for token in tokens_agrupados if token]\n",
+        "\n",
+        "# Reconhecimento de Entidades Nomeadas (NER) com NLTK\n",
+        "# Baixando o modelo NER para português (se ainda não baixou)\n",
+        "# nltk.download('maxent_ne_chunker_portuguese')\n",
+        "\n",
+        "# # Carregando o modelo NER para português\n",
+        "# modelo_ner_portugues = nltk.data.load('taggers/maxent_ne_chunker_portuguese.pickle')\n",
+        "\n",
+        "# # Anotando o texto com entidades nomeadas\n",
+        "# entidades = ne_chunk(modelo_ner_portugues.tag(pos_tag(tokens_agrupados)))\n",
+        "\n",
+        "# # Imprimindo entidades nomeadas\n",
+        "# print(\"Entidades Nomeadas:\", entidades)\n",
+        "\n",
+        "# Análise de Frases (Frase Aleatória)\n",
+        "sentencas = sent_tokenize(texto)\n",
+        "\n",
+        "# Selecionando índice aleatório de uma frase\n",
+        "indice_frase_aleatoria = random.randint(0, len(sentencas) - 1)\n",
+        "frase_aleatoria = sentencas[indice_frase_aleatoria]\n",
+        "\n",
+        "frase_tokenizada = nltk.word_tokenize(frase_aleatoria)\n",
+        "print(\"Frase Aleatória Tokenizada:\", frase_tokenizada)\n",
+        "\n",
+        "\n",
+        "# Extração de Tópicos\n",
+        "texto_pre_tfidf = ' '.join(tokens_filtrados)\n",
+        "\n",
+        "tfidf = TfidfVectorizer()  # Use default tokenizer now\n",
+        "matriz_tfidf = tfidf.fit_transform([texto_pre_tfidf])\n",
+        "feature_names = tfidf.get_feature_names_out()\n",
+        "pontuacoes = matriz_tfidf.toarray()[0]\n",
+        "indices_ordenados = pontuacoes.argsort()[::-1]\n",
+        "top_n = 10\n",
+        "for i in range(top_n):\n",
+        "    print(f\"Tópico {i+1}: {feature_names[indices_ordenados[i]]} ({pontuacoes[indices_ordenados[i]]})\")\n",
+        "\n",
+        "# Resumo Automático\n",
+        "texto_blob = TextBlob(texto)\n",
+        "sentencas_blob = texto_blob.sentences\n",
+        "resumo = str(sentencas_blob[0]) + \" \" + str(sentencas_blob[2])\n",
+        "print(\"Resumo Automático (TextBlob):\", resumo)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "tFxQGPvroo_i",
+        "outputId": "c672488b-0fe8-4347-dc3d-7fe347326ac4"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Frase Aleatória Tokenizada: ['Pela', 'primeira', 'vez', ',', 'o', 'Irã', 'realizou', 'ataques', 'diretos', 'contra', 'o', 'território', 'de', 'Israel', 'neste', 'sábado', '(', '13/4', ')', '.']\n",
+            "Tópico 1: israel (0.6962229659104628)\n",
+            "Tópico 2: irã (0.3664331399528752)\n",
+            "Tópico 3: disse (0.23818154096936886)\n",
+            "Tópico 4: ataque (0.1832165699764376)\n",
+            "Tópico 5: contra (0.12825159898350633)\n",
+            "Tópico 6: todos (0.07328662799057503)\n",
+            "Tópico 7: drones (0.07328662799057503)\n",
+            "Tópico 8: iraque (0.07328662799057503)\n",
+            "Tópico 9: islâmica (0.07328662799057503)\n",
+            "Tópico 10: sábado (0.07328662799057503)\n",
+            "Resumo Automático (TextBlob): Pela primeira vez, o Irã realizou ataques diretos contra o território de Israel neste sábado (13/4). Os residentes procuraram abrigo enquanto explosões eram ouvidas e as defesas aéreas eram ativadas.\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
